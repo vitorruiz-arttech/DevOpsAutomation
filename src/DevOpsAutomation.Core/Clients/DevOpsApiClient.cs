@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
@@ -17,7 +16,6 @@ namespace DevOpsAutomation.Core.Clients
     {
         private readonly string organizacao;
         private readonly string projeto;
-        private readonly string pat;
         private readonly HttpClient httpClient;
         private readonly ILogger<DevOpsApiClient> logger;
 
@@ -29,22 +27,13 @@ namespace DevOpsAutomation.Core.Clients
         {
             this.organizacao = organizacao ?? throw new ArgumentNullException(nameof(organizacao));
             this.projeto = projeto ?? throw new ArgumentNullException(nameof(projeto));
-            this.pat = personalAccessToken ?? throw new ArgumentNullException(nameof(personalAccessToken));
+            if (personalAccessToken == null) throw new ArgumentNullException(nameof(personalAccessToken));
             this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-            this.httpClient = new HttpClient();
-            ConfigurarAutenticacao();
-        }
-
-        private void ConfigurarAutenticacao()
-        {
-            var auth = Convert.ToBase64String(
-                Encoding.ASCII.GetBytes($":{pat}"));
-
-            httpClient.DefaultRequestHeaders.Authorization =
-                new AuthenticationHeaderValue("Basic", auth);
-
-            httpClient.DefaultRequestHeaders.Add("User-Agent", "DevOpsAutomationService/1.0");
+            httpClient = new HttpClient();
+            var auth = Convert.ToBase64String(Encoding.UTF8.GetBytes($":{personalAccessToken}"));
+            httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", auth);
+            httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         }
 
         /// <summary>Cria um Product Backlog Item no Azure DevOps</summary>
@@ -55,75 +44,77 @@ namespace DevOpsAutomation.Core.Clients
 
             logger.LogInformation($"📤 Criando PBI: {historia.Titulo}");
 
-            try
-            {
-                var url = $"https://dev.azure.com/{organizacao}/{projeto}/_apis/wit/workitems?api-version=7.1";
+            var url = $"https://dev.azure.com/{Uri.EscapeDataString(organizacao)}/{Uri.EscapeDataString(projeto)}" +
+                      "/_apis/wit/workitems/$Product%20Backlog%20Item?api-version=7.1";
 
-                var jsonPatch = new object[]
+            var patch = new object[]
+            {
+                new { op = "add", path = "/fields/System.Title", value = (object)historia.Titulo },
+                new { op = "add", path = "/fields/System.Description", value = (object)ConstruirDescricaoCompleta(historia) },
+                new { op = "add", path = "/fields/Microsoft.VSTS.Common.AcceptanceCriteria", value = (object)historia.CriteriosAceite },
+                new { op = "add", path = "/fields/System.AreaPath", value = (object)$"{projeto}\\{historia.Area}" },
+                new { op = "add", path = "/fields/Microsoft.VSTS.Common.Priority", value = (object)historia.Prioridade },
+                new
                 {
-                    new {
-                        op = "add",
-                        path = "/fields/System.Title",
-                        value = historia.Titulo
-                    },
-                    new {
-                        op = "add",
-                        path = "/fields/System.Description",
-                        value = historia.Descricao
-                    },
-                    new {
-                        op = "add",
-                        path = "/fields/Microsoft.VSTS.Common.AcceptanceCriteria",
-                        value = historia.CriteriosAceite
-                    },
-                    new {
-                        op = "add",
-                        path = "/fields/System.AreaPath",
-                        value = $"{projeto}\\{historia.Area}"
-                    },
-                    new {
-                        op = "add",
-                        path = "/fields/Microsoft.VSTS.Common.Priority",
-                        value = historia.Prioridade
+                    op = "add",
+                    path = "/relations/-",
+                    value = (object)new
+                    {
+                        rel = "System.LinkTypes.Hierarchy-Reverse",
+                        url = $"https://dev.azure.com/{Uri.EscapeDataString(organizacao)}/_apis/wit/workItems/{historia.EpicoId}"
                     }
-                };
-
-                var conteudo = new StringContent(
-                    JsonSerializer.Serialize(jsonPatch),
-                    Encoding.UTF8,
-                    "application/json-patch+json");
-
-                logger.LogDebug($"Enviando para: {url}");
-
-                var resposta = await httpClient.PostAsync(url, conteudo);
-
-                if (!resposta.IsSuccessStatusCode)
-                {
-                    var erroConteudo = await resposta.Content.ReadAsStringAsync();
-                    logger.LogError($"❌ Erro HTTP {resposta.StatusCode}: {erroConteudo}");
-                    throw new HttpRequestException(
-                        $"Falha ao criar PBI. Status: {resposta.StatusCode}");
                 }
+            };
 
-                var respostaJson = JsonSerializer.Deserialize<JsonElement>(
-                    await resposta.Content.ReadAsStringAsync());
+            using var conteudo = new StringContent(JsonSerializer.Serialize(patch), Encoding.UTF8);
+            conteudo.Headers.ContentType = new MediaTypeHeaderValue("application/json-patch+json");
 
-                int pbiId = respostaJson.GetProperty("id").GetInt32();
+            using var resposta = await httpClient.PostAsync(url, conteudo);
+            var corpo = await resposta.Content.ReadAsStringAsync();
 
-                logger.LogInformation($"✅ PBI #{pbiId} criada com sucesso");
-
-                return pbiId;
-            }
-            catch (Exception ex)
+            if (!resposta.IsSuccessStatusCode)
             {
-                logger.LogError(ex, $"❌ Erro ao criar PBI: {historia.Titulo}");
-                throw;
+                logger.LogError($"❌ HTTP {(int)resposta.StatusCode} ao criar PBI: {corpo}");
+                throw new HttpRequestException($"Falha ao criar PBI. Status: {(int)resposta.StatusCode} {resposta.StatusCode}");
             }
+
+            int pbiId = JsonDocument.Parse(corpo).RootElement.GetProperty("id").GetInt32();
+            logger.LogInformation($"✅ PBI #{pbiId} criada com sucesso (parent: Epic #{historia.EpicoId})");
+            return pbiId;
+        }
+
+        private string ConstruirDescricaoCompleta(HistoriaModel historia)
+        {
+            var secoes = new (string Titulo, string Html)[]
+            {
+                ("📝 Descrição", historia.Descricao),
+                ("📖 História", historia.Historia),
+                ("🎯 Objetivo da Funcionalidade", historia.Objetivo),
+                ("📋 Regras de Negócio", historia.RegrasNegocio),
+                ("🔄 Fluxo Resumido", historia.FluxoResumido),
+                ("⚙️ Requisitos Técnicos", historia.RequisitosTecnicos),
+                ("✅ Resultado Esperado", historia.ResultadoEsperado)
+            };
+
+            var sb = new StringBuilder();
+            sb.AppendLine("<div style='font-family: Segoe UI, sans-serif; color: #333;'>");
+
+            foreach (var (titulo, html) in secoes)
+            {
+                if (string.IsNullOrWhiteSpace(html))
+                    continue;
+
+                sb.AppendLine($"<h3>{titulo}</h3>");
+                sb.AppendLine(html);
+            }
+
+            sb.AppendLine("</div>");
+            return sb.ToString();
         }
 
         public void Dispose()
         {
-            httpClient?.Dispose();
+            httpClient.Dispose();
         }
     }
 }

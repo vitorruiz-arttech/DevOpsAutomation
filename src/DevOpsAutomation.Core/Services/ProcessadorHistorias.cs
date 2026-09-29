@@ -45,10 +45,37 @@ namespace DevOpsAutomation.Core.Services
             try
             {
                 logger.LogInformation("🔍 Iniciando varredura de histórias...");
+                logger.LogInformation($"📁 Procurando documentos em: {pastaDocumentos}");
+                logger.LogInformation($"📁 Pasta existe: {Directory.Exists(pastaDocumentos)}");
+
+                // Diagnóstico: listar TODOS os arquivos
+                try
+                {
+                    var todosArquivos = Directory.GetFiles(pastaDocumentos, "*");
+                    logger.LogInformation($"📄 Arquivos totais na pasta: {todosArquivos.Length}");
+                    foreach (var arquivo in todosArquivos.Take(5))
+                    {
+                        logger.LogInformation($"   Arquivo: {Path.GetFileName(arquivo)} (tipo: {Path.GetExtension(arquivo)})");
+                    }
+                }
+                catch (Exception exDiag)
+                {
+                    logger.LogError(exDiag, "❌ Erro ao listar arquivos diagnóstico");
+                }
 
                 var arquivos = Directory.GetFiles(pastaDocumentos, "*.docx")
                     .Where(f => !f.Contains("\\Integrado\\"))
                     .ToList();
+
+                logger.LogInformation($"📄 Total de arquivos .docx encontrados: {arquivos.Count}");
+
+                if (arquivos.Count > 0)
+                {
+                    foreach (var arquivo in arquivos)
+                    {
+                        logger.LogInformation($"   - {Path.GetFileName(arquivo)}");
+                    }
+                }
 
                 if (!arquivos.Any())
                 {

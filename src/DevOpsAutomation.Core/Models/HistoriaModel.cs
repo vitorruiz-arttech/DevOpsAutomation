@@ -13,11 +13,29 @@ namespace DevOpsAutomation.Core.Models
         /// <summary>Título da história (16pt bold)</summary>
         public string Titulo { get; set; } = string.Empty;
 
+        /// <summary>História: Como/Desejo/Para que</summary>
+        public string Historia { get; set; } = string.Empty;
+
+        /// <summary>Objetivo da funcionalidade</summary>
+        public string Objetivo { get; set; } = string.Empty;
+
         /// <summary>Descrição completa em HTML</summary>
         public string Descricao { get; set; } = string.Empty;
 
-        /// <summary>Critérios de aceite em HTML (cenários BDD)</summary>
+        /// <summary>Regras de Negócio (RN001, RN002, ...)</summary>
+        public string RegrasNegocio { get; set; } = string.Empty;
+
+        /// <summary>Critérios de aceite em HTML (Cenários)</summary>
         public string CriteriosAceite { get; set; } = string.Empty;
+
+        /// <summary>Fluxo resumido</summary>
+        public string FluxoResumido { get; set; } = string.Empty;
+
+        /// <summary>Requisitos Técnicos</summary>
+        public string RequisitosTecnicos { get; set; } = string.Empty;
+
+        /// <summary>Resultado Esperado</summary>
+        public string ResultadoEsperado { get; set; } = string.Empty;
 
         /// <summary>Área/Projeto (GIS BR, Transportes BR, etc)</summary>
         public string Area { get; set; } = string.Empty;
