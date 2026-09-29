@@ -59,7 +59,7 @@ namespace DevOpsAutomation.Core.Clients
             {
                 var url = $"https://dev.azure.com/{organizacao}/{projeto}/_apis/wit/workitems?api-version=7.1";
 
-                var jsonPatch = new[]
+                var jsonPatch = new object[]
                 {
                     new {
                         op = "add",

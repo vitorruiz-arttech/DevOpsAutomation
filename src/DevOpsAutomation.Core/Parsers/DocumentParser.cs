@@ -276,12 +276,14 @@ namespace DevOpsAutomation.Core.Parsers
         {
             try
             {
-                var size = paragrafo.ParagraphProperties
-                    ?.RunProperties
-                    ?.FontSize
-                    ?.Val;
+                var run = paragrafo.Descendants<Run>().FirstOrDefault();
+                if (run == null) return 0;
 
-                return size.HasValue ? size.Value / 2 : 0;
+                var sizeStr = run.RunProperties?.FontSize?.Val?.ToString();
+                if (string.IsNullOrEmpty(sizeStr) || !int.TryParse(sizeStr, out int sizeValue))
+                    return 0;
+
+                return sizeValue / 2;
             }
             catch
             {
@@ -293,9 +295,8 @@ namespace DevOpsAutomation.Core.Parsers
         {
             try
             {
-                return (paragrafo.ParagraphProperties?.RunProperties?.Bold?.Val ?? false) ||
-                       paragrafo.Descendants<Run>()
-                           .Any(r => r.RunProperties?.Bold?.Val ?? false);
+                return paragrafo.Descendants<Run>()
+                    .Any(r => r.RunProperties?.Bold?.Val ?? false);
             }
             catch
             {

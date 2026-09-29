@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Configuration.Json;
 
 namespace DevOpsAutomation.Core.Services
 {
@@ -13,10 +14,10 @@ namespace DevOpsAutomation.Core.Services
             if (!File.Exists(caminhoArquivo))
                 throw new FileNotFoundException($"Arquivo de configuração não encontrado: {caminhoArquivo}");
 
+            var basePath = Path.GetDirectoryName(caminhoArquivo) ?? ".";
             var builder = new ConfigurationBuilder()
-                .SetBasePath(Path.GetDirectoryName(caminhoArquivo))
-                .AddJsonFile(Path.GetFileName(caminhoArquivo), optional: false)
-                .AddEnvironmentVariables();
+                .SetBasePath(basePath)
+                .AddJsonFile(Path.GetFileName(caminhoArquivo), optional: false);
 
             var config = builder.Build();
 

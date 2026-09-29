@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.ServiceProcess;
 using System.Timers;
 using System.IO;
@@ -25,8 +26,6 @@ namespace DevOpsAutomation.Service
         public DevOpsAutomationService()
         {
             ServiceName = "DevOpsAutomationService";
-            DisplayName = "DevOps Historia Automation Service";
-            Description = "Serviço para automatizar criação de histórias no Azure DevOps";
             CanStop = true;
             CanPauseAndContinue = true;
             CanShutdown = true;
@@ -41,25 +40,25 @@ namespace DevOpsAutomation.Service
                     $"🚀 Serviço iniciando em {DateTime.Now:yyyy-MM-dd HH:mm:ss}",
                     EventLogEntryType.Information);
 
-                logger = LoggerFactory.CreateLogger<DevOpsAutomationService>();
+                logger = DevOpsAutomation.Core.Services.LoggerFactory.CreateLogger<DevOpsAutomationService>();
 
                 var config = ConfigurationService.CarregarConfiguracao(configPath);
                 logger.LogInformation($"⚙️ Configuração carregada");
 
                 parser = new DocumentParser(
-                    LoggerFactory.CreateLogger<DocumentParser>());
+                    DevOpsAutomation.Core.Services.LoggerFactory.CreateLogger<DocumentParser>());
 
                 devopsClient = new DevOpsApiClient(
                     config["Azure:Organizacao"],
                     config["Azure:Projeto"],
                     config["Azure:PersonalAccessToken"],
-                    LoggerFactory.CreateLogger<DevOpsApiClient>());
+                    DevOpsAutomation.Core.Services.LoggerFactory.CreateLogger<DevOpsApiClient>());
 
                 processador = new ProcessadorHistorias(
                     config["Paths:Documentos"],
                     parser,
                     devopsClient,
-                    LoggerFactory.CreateLogger<ProcessadorHistorias>());
+                    DevOpsAutomation.Core.Services.LoggerFactory.CreateLogger<ProcessadorHistorias>());
 
                 int intervaloMs = int.Parse(config["Service:IntervalMs"] ?? "1800000");
                 timer = new Timer(intervaloMs);
