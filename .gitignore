@@ -1,0 +1,45 @@
+# Arquivos build
+bin/
+obj/
+Debug/
+Release/
+*.dll
+*.exe
+*.pdb
+
+# Visual Studio
+.vs/
+.vscode/
+*.user
+*.sln.docstates
+
+# NuGet
+packages/
+*.nupkg
+*.snupkg
+.nuget/
+
+# Testes
+TestResults/
+coverage/
+*.trx
+
+# Logs e arquivos de saída
+logs/
+*.log
+
+# Variáveis de ambiente
+.env
+appsettings.Development.json
+
+# Arquivos do sistema
+.DS_Store
+Thumbs.db
+
+# Documentos processados (não versionamos)
+Integrado/
+*.docx
+
+# IDE temporários
+*.sublime-project
+*.sublime-workspace
